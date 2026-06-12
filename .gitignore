@@ -3,3 +3,7 @@ __pycache__/
 .ipynb_checkpoints/
 .vscode/
 .idea/
+.env
+token.json
+__pycache__/
+.venv/
