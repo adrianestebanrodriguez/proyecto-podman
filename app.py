@@ -28,19 +28,18 @@ def sincronizar_con_google(nota):
         partes = solo_fecha.split('/')
         fecha_formateada = f"{partes[2]}-{partes[1]}-{partes[0]}"
         
+        # Construcción del evento forzando la zona horaria de Bogotá
         event = {
             'summary': 'Planeador: ' + nota.get('texto'),
-            'start': {'date': fecha_formateada},
-            'end': {'date': fecha_formateada},
+            'start': {'date': fecha_formateada, 'timeZone': 'America/Bogota'},
+            'end': {'date': fecha_formateada, 'timeZone': 'America/Bogota'},
             'transparency': 'transparent'
         }
         res = service.events().insert(calendarId='primary', body=event).execute()
-        return res.get('id') # Retornamos el ID para guardarlo en la nota
+        return res.get('id')
     except Exception as e:
         print(f"Error sincronizando con Google: {e}", flush=True)
         return None
-
-@app.route('/notas', methods=['POST'])
 def guardar_nota():
     datos = request.get_json()
     nota = datos.get('nota')
