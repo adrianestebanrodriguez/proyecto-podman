@@ -23,6 +23,8 @@ db = redis.from_url(redis_url, decode_responses=True)
 print("Conexión a Redis establecida correctamente", flush=True)
 
 def sincronizar_con_google(nota_texto, fecha_str):
+    print(f"DEBUG: El frontend envió esta fecha: '{fecha_str}'", flush=True)
+    # ... resto del código
     # 1. Cargar el token desde variables de entorno
     token_str = os.environ.get('GOOGLE_TOKEN_JSON')
     if not token_str:
@@ -37,12 +39,19 @@ def sincronizar_con_google(nota_texto, fecha_str):
     creds = Credentials.from_authorized_user_file('temp_token.json', ['https://www.googleapis.com/auth/calendar'])
     service = build('calendar', 'v3', credentials=creds)
     
-    # 4. Formatear fecha a YYYY-MM-DD (Formato requerido por Google)
+   # 4. Formatear fecha: Limpiamos la entrada para asegurar YYYY-MM-DD
     try:
-        # Si fecha_str es '12/06/2026', la separamos y reordenamos
-        partes = fecha_str.split('/')
-        fecha_formateada = f"{partes[2]}-{partes[1]}-{partes[0]}"
-    except:
+        # Si la fecha llega con caracteres extra, solo queremos números y barras o guiones
+        # Si tu frontend envía '12/06/2026', el split funcionará:
+        if '/' in fecha_str:
+            partes = fecha_str.split('/')
+            # partes[0]=DÍA, partes[1]=MES, partes[2]=AÑO
+            fecha_formateada = f"{partes[2]}-{partes[1]}-{partes[0]}"
+        else:
+            # Si ya viene formateada o es un string diferente, intentamos usarlo tal cual
+            # o fallback a la fecha de hoy
+            fecha_formateada = datetime.now().strftime('%Y-%m-%d')
+    except Exception:
         fecha_formateada = datetime.now().strftime('%Y-%m-%d')
 
     # 5. Crear objeto evento
