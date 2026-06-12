@@ -28,11 +28,12 @@ def sincronizar_con_google(nota):
         partes = solo_fecha.split('/')
         fecha_formateada = f"{partes[2]}-{partes[1]}-{partes[0]}"
         
-        # Construcción del evento forzando la zona horaria de Bogotá
+        # CORRECTO: Para eventos de TODO EL DÍA, solo se envía 'date' (sin timeZone)
+        # Esto evita que Google aplique zonas horarias y mueva el día
         event = {
             'summary': 'Planeador: ' + nota.get('texto'),
-            'start': {'date': fecha_formateada, 'timeZone': 'America/Bogota'},
-            'end': {'date': fecha_formateada, 'timeZone': 'America/Bogota'},
+            'start': {'date': fecha_formateada},
+            'end': {'date': fecha_formateada},
             'transparency': 'transparent'
         }
         res = service.events().insert(calendarId='primary', body=event).execute()
@@ -40,12 +41,13 @@ def sincronizar_con_google(nota):
     except Exception as e:
         print(f"Error sincronizando con Google: {e}", flush=True)
         return None
+
+@app.route('/notas', methods=['POST']) # <--- ESTO ES LO QUE TE FALTABA
 def guardar_nota():
     datos = request.get_json()
     nota = datos.get('nota')
     if not nota: return jsonify({"error": "Datos inválidos"}), 400
     
-    # Sincronizamos y guardamos el ID en la nota
     google_id = sincronizar_con_google(nota)
     if google_id:
         nota['google_id'] = google_id
@@ -59,19 +61,16 @@ def eliminar_nota(nota_id):
     for n_str in raw_notas:
         nota = json.loads(n_str)
         if nota.get('id') == nota_id:
-            # Si tiene un google_id, lo borramos de Google Calendar
             if 'google_id' in nota:
                 try:
                     service = get_service()
                     service.events().delete(calendarId='primary', eventId=nota['google_id']).execute()
                 except Exception as e:
                     print(f"Error borrando de Google: {e}", flush=True)
-            
             db.lrem('mis_notas', 1, n_str)
             return jsonify({"status": "success"}), 200
     return jsonify({"message": "No encontrada"}), 404
 
-# Las rutas GET, PUT y BORRAR se mantienen igual que las tenías
 @app.route('/notas', methods=['GET'])
 def obtener_notas():
     try:
