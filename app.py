@@ -20,37 +20,41 @@ def get_service():
     creds = Credentials.from_authorized_user_file('temp_token.json', ['https://www.googleapis.com/auth/calendar'])
     return build('calendar', 'v3', credentials=creds)
 
+from datetime import datetime, timedelta
+
 def sincronizar_con_google(nota):
     try:
         service = get_service()
         
-        # USAMOS fechaPlan (que es YYYY-MM-DD) directamente del input del frontend
-        fecha_formateada = nota.get('fechaPlan') 
+        # 1. Obtener datos del formulario
+        fecha = nota.get('fechaPlan') # Esperado: '2026-06-15'
+        hora = nota.get('horaPlan')   # Esperado: '10:38' (formato 24h)
         
-        # Si por alguna razón falla el input, usamos el fallback de seguridad
-        if not fecha_formateada:
-            solo_fecha = nota.get('fecha', '').split(',')[0].strip()
-            partes = solo_fecha.split('/')
-            fecha_formateada = f"{partes[2]}-{partes[1]}-{partes[0]}"
+        # 2. Combinar en formato YYYY-MM-DDTHH:MM:SS
+        inicio_str = f"{fecha}T{hora}:00"
         
-        print(f"DEBUG: Sincronizando para la fecha: {fecha_formateada}", flush=True)
+        # 3. Convertir a objeto datetime para calcular el fin (1 hora después)
+        start_dt = datetime.strptime(inicio_str, '%Y-%m-%dT%H:%M:%S')
+        end_dt = start_dt + timedelta(hours=1)
         
+        # 4. Crear evento con dateTime (y no date)
         event = {
             'summary': 'Planeador: ' + nota.get('texto'),
-            'start': {'date': fecha_formateada},
-            'end': {'date': fecha_formateada},
-            'transparency': 'transparent'
+            'start': {
+                'dateTime': start_dt.isoformat(),
+                'timeZone': 'America/Bogota',
+            },
+            'end': {
+                'dateTime': end_dt.isoformat(),
+                'timeZone': 'America/Bogota',
+            },
         }
         
+        print(f"DEBUG: Sincronizando evento: {event['summary']} a las {start_dt}", flush=True)
         res = service.events().insert(calendarId='primary', body=event).execute()
         return res.get('id')
         
     except Exception as e:
-        print(f"ERROR CRÍTICO EN SINCRONIZACIÓN: {str(e)}", flush=True)
-        return None
-        
-    except Exception as e:
-        # AQUÍ VEREMOS EL ERROR REAL EN EL LOG DE RENDER
         print(f"ERROR CRÍTICO EN SINCRONIZACIÓN: {str(e)}", flush=True)
         return None
 
