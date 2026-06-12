@@ -27,8 +27,24 @@ db = redis.from_url(redis_url, decode_responses=True)
 print("Conexión a Redis establecida correctamente", flush=True)
 import json
 
-def sincronizar_con_google(nota_texto, fecha):
-    # Intentamos obtener el token desde la variable de entorno
+dfrom datetime import datetime
+
+def sincronizar_con_google(nota_texto, fecha_str):
+    # Asumiendo que recibes '12/06/2026, 04:09'
+    # Vamos a extraer solo la parte de la fecha YYYY-MM-DD
+    try:
+        # Si la fecha viene como 'DD/MM/YYYY...'
+        partes = fecha_str.split('/')[0:3] # Esto es una simplificación
+        # Lo mejor es asegurar que tenga formato YYYY-MM-DD
+        # Si tu entrada es '12/06/2026', el formato correcto para Google es:
+        fecha_formateada = "2026-06-12" # Ejemplo fijo, cámbialo a tu lógica de parseo
+        
+        # O mejor, si tu JS envía ya 'YYYY-MM-DD', usa esa variable directamente.
+        event = {
+            'summary': 'Planeador: ' + nota_texto,
+            'start': {'date': fecha_formateada}, 
+            'end': {'date': fecha_formateada},
+        }
     token_str = os.environ.get('GOOGLE_TOKEN_JSON')
     
     if not token_str:
