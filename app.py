@@ -23,23 +23,29 @@ def get_service():
 def sincronizar_con_google(nota):
     try:
         service = get_service()
-        # Parseo de fecha: '13/06/2026' -> '2026-06-13'
+        if not service:
+            print("ERROR: No se pudo obtener el servicio de Google (revisa GOOGLE_TOKEN_JSON)", flush=True)
+            return None
+
         solo_fecha = nota.get('fecha', '').split(',')[0].strip()
         partes = solo_fecha.split('/')
         fecha_formateada = f"{partes[2]}-{partes[1]}-{partes[0]}"
         
-        # CORRECTO: Para eventos de TODO EL DÍA, solo se envía 'date' (sin timeZone)
-        # Esto evita que Google aplique zonas horarias y mueva el día
         event = {
             'summary': 'Planeador: ' + nota.get('texto'),
             'start': {'date': fecha_formateada},
             'end': {'date': fecha_formateada},
             'transparency': 'transparent'
         }
+        
+        print(f"DEBUG: Intentando insertar evento para {fecha_formateada}", flush=True)
         res = service.events().insert(calendarId='primary', body=event).execute()
+        print(f"DEBUG: Evento creado exitosamente con ID: {res.get('id')}", flush=True)
         return res.get('id')
+        
     except Exception as e:
-        print(f"Error sincronizando con Google: {e}", flush=True)
+        # AQUÍ VEREMOS EL ERROR REAL EN EL LOG DE RENDER
+        print(f"ERROR CRÍTICO EN SINCRONIZACIÓN: {str(e)}", flush=True)
         return None
 
 @app.route('/notas', methods=['POST']) # <--- ESTO ES LO QUE TE FALTABA
