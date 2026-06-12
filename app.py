@@ -17,7 +17,7 @@ import os
 import redis
 
 # Leemos la URL, si no está, lanzamos un error claro
-redis_url = os.environ.get('redis://red-d8lmg20js32c73b06th0:6379')
+redis_url = os.environ.get('REDIS_URL')
 
 if not redis_url:
     raise ValueError("La variable de entorno REDIS_URL no está configurada")
@@ -117,4 +117,4 @@ def borrar_todas_las_notas():
 if __name__ == '__main__':
     import datetime
     print(f"--- Servidor iniciado a las {datetime.datetime.now()} ---", flush=True)
-    app.run(host='0.0.0.0', port=5005, debug=False) # debug=False es importante
+    app.run(host='0.0.0.0', port=5000, debug=False) # debug=False es importante
