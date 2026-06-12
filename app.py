@@ -27,7 +27,7 @@ db = redis.from_url(redis_url, decode_responses=True)
 print("Conexión a Redis establecida correctamente", flush=True)
 import json
 
-dfrom datetime import datetime
+from datetime import datetime
 
 def sincronizar_con_google(nota_texto, fecha_str):
     # Asumiendo que recibes '12/06/2026, 04:09'
