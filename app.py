@@ -39,19 +39,16 @@ def sincronizar_con_google(nota_texto, fecha_str):
     creds = Credentials.from_authorized_user_file('temp_token.json', ['https://www.googleapis.com/auth/calendar'])
     service = build('calendar', 'v3', credentials=creds)
     
-   # 4. Formatear fecha: Limpiamos la entrada para asegurar YYYY-MM-DD
+   # 4. Formatear fecha: Convertir '12/06/2026, 04:30' a '2026-06-12'
     try:
-        # Si la fecha llega con caracteres extra, solo queremos números y barras o guiones
-        # Si tu frontend envía '12/06/2026', el split funcionará:
-        if '/' in fecha_str:
-            partes = fecha_str.split('/')
-            # partes[0]=DÍA, partes[1]=MES, partes[2]=AÑO
-            fecha_formateada = f"{partes[2]}-{partes[1]}-{partes[0]}"
-        else:
-            # Si ya viene formateada o es un string diferente, intentamos usarlo tal cual
-            # o fallback a la fecha de hoy
-            fecha_formateada = datetime.now().strftime('%Y-%m-%d')
-    except Exception:
+        # Primero quitamos la parte de la hora después de la coma
+        solo_fecha = fecha_str.split(',')[0] # Obtiene '12/06/2026'
+        partes = solo_fecha.split('/')       # Separa ['12', '06', '2026']
+        
+        # Google necesita YYYY-MM-DD
+        fecha_formateada = f"{partes[2]}-{partes[1]}-{partes[0]}"
+    except Exception as e:
+        print(f"Error parseando fecha: {e}", flush=True)
         fecha_formateada = datetime.now().strftime('%Y-%m-%d')
 
     # 5. Crear objeto evento
