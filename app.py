@@ -22,41 +22,55 @@ def get_service():
 
 from datetime import datetime, timedelta
 
+def _crear_evento_google(nota):
+    fecha = nota.get('fechaPlan')
+    hora = nota.get('horaPlan')
+    if not fecha or not hora:
+        return None
+    inicio_str = f"{fecha}T{hora}:00"
+    start_dt = datetime.strptime(inicio_str, '%Y-%m-%dT%H:%M:%S')
+    end_dt = start_dt + timedelta(hours=1)
+    return {
+        'summary': 'Planeador: ' + nota.get('texto'),
+        'start': { 'dateTime': start_dt.isoformat(), 'timeZone': 'America/Bogota' },
+        'end':   { 'dateTime': end_dt.isoformat(),   'timeZone': 'America/Bogota' },
+    }
+
 def sincronizar_con_google(nota):
     try:
+        event = _crear_evento_google(nota)
+        if not event:
+            return None
         service = get_service()
-        
-        # 1. Obtener datos del formulario
-        fecha = nota.get('fechaPlan') # Esperado: '2026-06-15'
-        hora = nota.get('horaPlan')   # Esperado: '10:38' (formato 24h)
-        
-        # 2. Combinar en formato YYYY-MM-DDTHH:MM:SS
-        inicio_str = f"{fecha}T{hora}:00"
-        
-        # 3. Convertir a objeto datetime para calcular el fin (1 hora después)
-        start_dt = datetime.strptime(inicio_str, '%Y-%m-%dT%H:%M:%S')
-        end_dt = start_dt + timedelta(hours=1)
-        
-        # 4. Crear evento con dateTime (y no date)
-        event = {
-            'summary': 'Planeador: ' + nota.get('texto'),
-            'start': {
-                'dateTime': start_dt.isoformat(),
-                'timeZone': 'America/Bogota',
-            },
-            'end': {
-                'dateTime': end_dt.isoformat(),
-                'timeZone': 'America/Bogota',
-            },
-        }
-        
-        print(f"DEBUG: Sincronizando evento: {event['summary']} a las {start_dt}", flush=True)
+        print(f"DEBUG: Creando evento: {event['summary']}", flush=True)
         res = service.events().insert(calendarId='primary', body=event).execute()
         return res.get('id')
-        
     except Exception as e:
-        print(f"ERROR CRÍTICO EN SINCRONIZACIÓN: {str(e)}", flush=True)
+        print(f"ERROR creando evento en Google: {str(e)}", flush=True)
         return None
+
+def actualizar_en_google(nota, google_id):
+    try:
+        event = _crear_evento_google(nota)
+        if not event:
+            return None
+        service = get_service()
+        print(f"DEBUG: Actualizando evento {google_id}: {event['summary']}", flush=True)
+        res = service.events().update(calendarId='primary', eventId=google_id, body=event).execute()
+        return res.get('id')
+    except Exception as e:
+        print(f"ERROR actualizando evento en Google: {str(e)}", flush=True)
+        return None
+
+def eliminar_en_google(google_id):
+    try:
+        service = get_service()
+        service.events().delete(calendarId='primary', eventId=google_id).execute()
+        print(f"DEBUG: Evento {google_id} eliminado de Google", flush=True)
+        return True
+    except Exception as e:
+        print(f"ERROR eliminando evento de Google: {str(e)}", flush=True)
+        return False
 
 @app.route('/notas', methods=['POST']) # <--- ESTO ES LO QUE TE FALTABA
 def guardar_nota():
@@ -77,12 +91,9 @@ def eliminar_nota(nota_id):
     for n_str in raw_notas:
         nota = json.loads(n_str)
         if nota.get('id') == nota_id:
-            if 'google_id' in nota:
-                try:
-                    service = get_service()
-                    service.events().delete(calendarId='primary', eventId=nota['google_id']).execute()
-                except Exception as e:
-                    print(f"Error borrando de Google: {e}", flush=True)
+            gid = nota.get('google_id')
+            if gid:
+                eliminar_en_google(gid)
             db.lrem('mis_notas', 1, n_str)
             return jsonify({"status": "success"}), 200
     return jsonify({"message": "No encontrada"}), 404
@@ -100,13 +111,37 @@ def editar_nota(nota_id):
     nueva_data = datos.get('nota')
     raw_notas = db.lrange('mis_notas', 0, -1)
     for i, n_str in enumerate(raw_notas):
-        if json.loads(n_str).get('id') == nota_id:
+        old = json.loads(n_str)
+        if old.get('id') == nota_id:
+            old_google_id = old.get('google_id')
+            new_google_id = old_google_id
+            tiene_fecha = bool(nueva_data.get('fechaPlan') and nueva_data.get('horaPlan'))
+
+            if old_google_id and tiene_fecha:
+                result = actualizar_en_google(nueva_data, old_google_id)
+                if result:
+                    new_google_id = result
+            elif old_google_id and not tiene_fecha:
+                eliminar_en_google(old_google_id)
+                new_google_id = None
+            elif not old_google_id and tiene_fecha:
+                result = sincronizar_con_google(nueva_data)
+                if result:
+                    new_google_id = result
+
+            nueva_data['google_id'] = new_google_id
             db.lset('mis_notas', i, json.dumps(nueva_data))
             return jsonify({"status": "success"}), 200
     return jsonify({"message": "No encontrada"}), 404
 
 @app.route('/borrar', methods=['POST'])
 def borrar_todas():
+    raw_notas = db.lrange('mis_notas', 0, -1)
+    for n_str in raw_notas:
+        nota = json.loads(n_str)
+        gid = nota.get('google_id')
+        if gid:
+            eliminar_en_google(gid)
     db.delete('mis_notas')
     return jsonify({"status": "success"}), 200
 
