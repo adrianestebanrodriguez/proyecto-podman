@@ -6,6 +6,7 @@ import os
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
+from datetime import datetime
 
 # Cargar variables de entorno
 load_dotenv()
@@ -13,66 +14,52 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-import os
-import redis
-
-# Leemos la URL, si no está, lanzamos un error claro
+# Configuración de Redis
 redis_url = os.environ.get('REDIS_URL')
-
 if not redis_url:
     raise ValueError("La variable de entorno REDIS_URL no está configurada")
 
-# Conectamos eliminando parámetros extra por si acaso
 db = redis.from_url(redis_url, decode_responses=True)
 print("Conexión a Redis establecida correctamente", flush=True)
-import json
-
-from datetime import datetime
 
 def sincronizar_con_google(nota_texto, fecha_str):
-    # Asumiendo que recibes '12/06/2026, 04:09'
-    # Vamos a extraer solo la parte de la fecha YYYY-MM-DD
-    try:
-        # Si la fecha viene como 'DD/MM/YYYY...'
-        partes = fecha_str.split('/')[0:3] # Esto es una simplificación
-        # Lo mejor es asegurar que tenga formato YYYY-MM-DD
-        # Si tu entrada es '12/06/2026', el formato correcto para Google es:
-        fecha_formateada = "2026-06-12" # Ejemplo fijo, cámbialo a tu lógica de parseo
-        
-        # O mejor, si tu JS envía ya 'YYYY-MM-DD', usa esa variable directamente.
-        event = {
-            'summary': 'Planeador: ' + nota_texto,
-            'start': {'date': fecha_formateada}, 
-            'end': {'date': fecha_formateada},
-        }
+    # 1. Cargar el token desde variables de entorno
     token_str = os.environ.get('GOOGLE_TOKEN_JSON')
-    
     if not token_str:
         print("Error: GOOGLE_TOKEN_JSON no configurado en Render", flush=True)
         return
 
-    # Creamos un archivo temporal en memoria o lo cargamos directamente
-    # Una forma sencilla es escribir el archivo temporalmente al arrancar
+    # 2. Crear archivo temporal para las credenciales
     with open('temp_token.json', 'w') as f:
         f.write(token_str)
     
+    # 3. Preparar servicio
     creds = Credentials.from_authorized_user_file('temp_token.json', ['https://www.googleapis.com/auth/calendar'])
     service = build('calendar', 'v3', credentials=creds)
     
+    # 4. Formatear fecha a YYYY-MM-DD (Formato requerido por Google)
+    try:
+        # Si fecha_str es '12/06/2026', la separamos y reordenamos
+        partes = fecha_str.split('/')
+        fecha_formateada = f"{partes[2]}-{partes[1]}-{partes[0]}"
+    except:
+        fecha_formateada = datetime.now().strftime('%Y-%m-%d')
+
+    # 5. Crear objeto evento
     event = {
         'summary': 'Planeador: ' + nota_texto,
-        'start': {'date': fecha},
-        'end': {'date': fecha},
+        'start': {'date': fecha_formateada},
+        'end': {'date': fecha_formateada},
     }
     
-    # Capturamos la respuesta completa aquí
+    # 6. Ejecutar inserción
     print(f"Enviando evento a Google: {event}", flush=True)
     try:
-        event_result = service.events().insert(calendarId='adrianalvarezr@gmail.com', body=event).execute()
-        print(f"RESPUESTA DE GOOGLE: {event_result}", flush=True)
+        event_result = service.events().insert(calendarId='primary', body=event).execute()
+        print(f"RESPUESTA DE GOOGLE: {event_result.get('id')}", flush=True)
     except Exception as e:
         print(f"ERROR DETALLADO DE LA API: {e}", flush=True)
-        raise e # Esto hará que el bloque try/except de guardar_nota capture el error
+        raise e
 
 # --- RUTAS DE LA API ---
 
@@ -92,15 +79,12 @@ def guardar_nota():
         nueva_nota_obj = datos.get('nota', None)
         if nueva_nota_obj:
             db.rpush('mis_notas', json.dumps(nueva_nota_obj))
-            
-            # Sincronización forzada con 'flush=True' para verla en terminal
             try:
                 print("Intentando sincronizar con Google...", flush=True) 
                 sincronizar_con_google(nueva_nota_obj.get('texto'), nueva_nota_obj.get('fecha'))
                 print("Sincronización finalizada.", flush=True) 
             except Exception as e:
                 print(f"!!! ERROR FATAL EN SINCRONIZACION: {e}", flush=True)
-            
             return jsonify({"status": "success"}), 201
         return jsonify({"error": "Estructura invalida"}), 400
     except Exception as e:
@@ -140,6 +124,5 @@ def borrar_todas_las_notas():
     return jsonify({"status": "success"}), 200
 
 if __name__ == '__main__':
-    import datetime
-    print(f"--- Servidor iniciado a las {datetime.datetime.now()} ---", flush=True)
-    app.run(host='0.0.0.0', port=5000, debug=False) # debug=False es importante
+    print(f"--- Servidor iniciado a las {datetime.now()} ---", flush=True)
+    app.run(host='0.0.0.0', port=5000, debug=False)
