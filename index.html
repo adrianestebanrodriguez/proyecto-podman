@@ -395,7 +395,7 @@
             };
 
             try {
-                const res = await fetch(`http://localhost:5000/notas/${id}`, {
+                const res = await fetch(`https://proyecto-podman.onrender.com/notas/${id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ "nota": notaActualizada })
@@ -415,7 +415,7 @@
             const tarjeta = document.getElementById(`nota-${id}`);
             if (!tarjeta) return;
             try {
-                const res = await fetch(`http://localhost:5000/notas/${id}`, { method: 'DELETE' });
+                const res = await fetch(`https://proyecto-podman.onrender.com/notas/${id}`, { method: 'DELETE' });
                 if (res.ok) {
                     tarjeta.classList.add('nota-eliminando');
                     setTimeout(() => { cargarNotas(); }, 300);
