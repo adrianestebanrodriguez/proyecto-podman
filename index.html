@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📅 Planeador Adrian</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' }
+    </script>
+    <style>
+        /* Forzar que el esquema de color de los inputs nativos (calendario/hora) sea oscuro */
+        color-scheme: dark;
+
+        .nota-animada {
+            animation: buildIn 0.3s ease-out forwards;
+        }
+
+        .nota-eliminando {
+            animation: buildOut 0.3s ease-in forwards;
+        }
+
+        @keyframes buildIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes buildOut {
+            from {
+                opacity: 1;
+            }
+
+            to {
+                opacity: 0;
+                height: 0;
+                padding: 0;
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-[#0f172a] text-slate-100 min-h-screen transition-colors duration-300 antialiased dark">
+
+    <header class="border-b border-slate-800 bg-[#0b0f19]/80 backdrop-blur sticky top-0 z-40">
+        <div class="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="bg-purple-600 text-white p-2 rounded-xl shadow-md">
+                    <i data-lucide="calendar-check" class="w-6 h-6"></i>
+                </div>
+                <h1 class="text-xl font-bold text-slate-100">Planeador<span class="text-purple-400"> Adrian</span></h1>
+            </div>
+            <button class="p-2.5 rounded-xl border border-slate-800 bg-slate-900 text-purple-400 cursor-default">
+                <i data-lucide="moon" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-4 py-8">
+
+        <div class="bg-[#0b0f19] border border-slate-800 rounded-2xl p-5 shadow-sm mb-8">
+            <div class="flex flex-col gap-4">
+                <input type="text" id="notaInput" placeholder="Escribe algo importante..."
+                    class="w-full bg-[#131b2e] border border-slate-800 rounded-xl px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20">
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div>
+                        <label
+                            class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Categoría</label>
+                        <select id="categoriaInput"
+                            class="w-full bg-[#131b2e] border border-slate-800 text-sm font-medium rounded-xl px-3 py-2 text-slate-300 focus:outline-none">
+                            <option value="personal">👤 Personal</option>
+                            <option value="trabajo">💼 Trabajo</option>
+                            <option value="familia">🏠 Familia</option>
+                            <option value="socios">🤝 Socios</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label
+                            class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Fecha</label>
+                        <input type="date" id="fechaAgendaInput"
+                            class="w-full bg-[#131b2e] border border-slate-800 text-sm font-medium rounded-xl px-3 py-2 text-slate-300 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Hora
+                            Actividad</label>
+                        <input type="time" id="horaAgendaInput"
+                            class="w-full bg-[#131b2e] border border-slate-800 text-sm font-medium rounded-xl px-3 py-2 text-slate-300 focus:outline-none">
+                    </div>
+
+                    <button onclick="agregarNota()"
+                        class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold px-6 py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-md h-[40px]">
+                        <i data-lucide="plus" class="w-5 h-5"></i> Guardar Nota
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+
+            <div class="lg:col-span-1 space-y-4">
+                <div class="bg-[#0b0f19] border border-slate-800 rounded-2xl p-4 shadow-sm">
+                    <h3
+                        class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                        <i data-lucide="filter" class="w-3.5 h-3.5"></i> Filtrar por Día
+                    </h3>
+                    <input type="date" id="filtroFecha" onchange="filtrarTareasPorFecha()"
+                        class="w-full bg-[#131b2e] border border-slate-800 text-sm font-medium rounded-xl px-3 py-2 text-slate-300 focus:outline-none mb-3">
+                    <button onclick="limpiarFiltroFecha()"
+                        class="w-full text-xs bg-slate-900 hover:bg-slate-800 text-slate-400 font-semibold py-2 rounded-xl transition-colors">
+                        Ver todas las fechas
+                    </button>
+                </div>
+            </div>
+
+            <div class="lg:col-span-3">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-lg font-bold text-slate-300 flex items-center gap-2">
+                        Mis Tarjetas <span id="contador-notas"
+                            class="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full">0</span>
+                    </h2>
+                    <button onclick="borrarTodasLasNotas()"
+                        class="text-sm font-medium text-red-400 hover:text-red-500 flex items-center gap-1.5 transition-colors">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i> Limpiar todo
+                    </button>
+                </div>
+
+                <div id="listaNotas" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </div>
+        </div>
+    </main>
+
+    <div id="editModal"
+        class="hidden fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-[#0b0f19] border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-xl">
+            <h3 class="text-lg font-bold text-slate-100 mb-4 flex items-center gap-2">
+                <i data-lucide="edit-3" class="text-purple-400"></i> Editar Registro
+            </h3>
+            <input type="hidden" id="editNotaId">
+            <div class="flex flex-col gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5">Tarea</label>
+                    <input type="text" id="editNotaTexto"
+                        class="w-full bg-[#131b2e] border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5">Categoría</label>
+                    <select id="editNotaCategoria"
+                        class="w-full bg-[#131b2e] border border-slate-800 rounded-xl px-3 py-2.5 text-slate-300 focus:outline-none">
+                        <option value="personal">👤 Personal</option>
+                        <option value="trabajo">💼 Trabajo</option>
+                        <option value="familia">🏠 Familia</option>
+                        <option value="socios">🤝 Socios</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5">Fecha Agenda</label>
+                        <input type="date" id="editNotaFechaPlan"
+                            class="w-full bg-[#131b2e] border border-slate-800 rounded-xl px-3 py-2 text-slate-300 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5">Hora Agenda</label>
+                        <input type="time" id="editNotaHoraPlan"
+                            class="w-full bg-[#131b2e] border border-slate-800 rounded-xl px-3 py-2 text-slate-300 focus:outline-none">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 mt-2">
+                    <button onclick="cerrarModal()"
+                        class="px-4 py-2 rounded-xl text-slate-400 hover:bg-slate-900 text-sm">Cancelar</button>
+                    <button onclick="guardarEdicion()"
+                        class="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-sm shadow-md">Actualizar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/notas';
+        const BORRAR_URL = 'http://localhost:5000/borrar';
+        let todasLasNotasGlobal = [];
+
+        // Iniciar campos de fecha y hora actuales
+        document.getElementById('fechaAgendaInput').valueAsDate = new Date();
+        const ahora = new Date();
+        const horaFormateada = `${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}`;
+        document.getElementById('horaAgendaInput').value = horaFormateada;
+
+        const categoriaEstilos = {
+            trabajo: {
+                bg: 'border-l-blue-500',
+                tag: 'bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-900/50'
+            },
+            personal: {
+                bg: 'border-l-purple-500',
+                tag: 'bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-900/50'
+            },
+            familia: {
+                bg: 'border-l-emerald-500',
+                tag: 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50'
+            },
+            socios: {
+                bg: 'border-l-amber-500',
+                tag: 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50'
+            }
+        };
+
+        // Forzar modo oscuro en Tailwind
+        // --- Lógica de Modo Automático ---
+        function aplicarTemaAutomatico() {
+            const hora = new Date().getHours();
+            // Modo claro de 6:00 a 17:00 (5:00 PM)
+            if (hora >= 6 && hora < 17) {
+                document.documentElement.classList.remove('dark');
+            } else {
+                // Modo oscuro el resto del tiempo
+                document.documentElement.classList.add('dark');
+            }
+        }
+
+        aplicarTemaAutomatico();
+        // --- Fin de Lógica ---
+
+        // Renderizar Tarjetas
+        function renderizarTarjetas(notas) {
+            const lista = document.getElementById('listaNotas');
+            document.getElementById('contador-notas').textContent = notas.length;
+            lista.innerHTML = '';
+
+            if (notas.length === 0) {
+                lista.innerHTML = `<div class="col-span-full text-center py-12 text-slate-600"><i data-lucide="inbox" class="w-12 h-12 mx-auto mb-2 opacity-40"></i><p>No hay tareas asignadas para esta selección</p></div>`;
+                lucide.createIcons();
+                return;
+            }
+
+            // Ordenar automáticamente por hora de actividad
+            notas.sort((a, b) => (a.horaPlan || '').localeCompare(b.horaPlan || ''));
+
+            notas.forEach(nota => {
+                const estilo = categoriaEstilos[nota.categoria] || categoriaEstilos.personal;
+                const card = document.createElement('div');
+                card.id = `nota-${nota.id}`;
+                card.className = `nota-animada bg-[#0b0f19] border border-slate-800 border-l-4 ${estilo.bg} rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group`;
+
+                let agendaBadge = '';
+                if (nota.fechaPlan) {
+                    const [y, m, d] = nota.fechaPlan.split('-');
+                    const horaDisplay = nota.horaPlan ? ` 🕒 ${nota.horaPlan}` : '';
+                    agendaBadge = `<span class="text-[11px] bg-slate-900 text-slate-300 font-bold px-2 py-0.5 rounded-md flex items-center gap-1 border border-slate-800"><i data-lucide="calendar" class="w-3 h-3 text-purple-400"></i> ${d}/${m}/${y}${horaDisplay}</span>`;
+                }
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start gap-3">
+                        <div class="flex-1">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full ${estilo.tag}">
+                                    ${nota.categoria}
+                                </span>
+                                ${agendaBadge}
+                            </div>
+                            <p class="text-slate-200 font-semibold whitespace-pre-wrap leading-relaxed mt-3" id="texto-contenido-${nota.id}">${nota.texto}</p>
+                        </div>
+                        <div class="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                            <button onclick="abrirModalEditar('${nota.id}', '${nota.categoria}', '${nota.fechaPlan || ''}', '${nota.horaPlan || ''}')" class="text-slate-500 hover:text-purple-400 p-1.5 rounded-lg hover:bg-slate-900">
+                                <i data-lucide="edit-2" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="eliminarNotaIndividual('${nota.id}')" class="text-slate-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-slate-900">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-900 flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                        <span class="flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> ${nota.fecha}</span>
+                    </div>
+                `;
+                lista.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        // Cargar desde el Servidor
+        async function cargarNotas() {
+            try {
+                const res = await fetch(API_URL);
+                todasLasNotasGlobal = await res.json();
+
+                const filtro = document.getElementById('filtroFecha').value;
+                if (filtro) {
+                    filtrarTareasPorFecha();
+                } else {
+                    renderizarTarjetas(todasLasNotasGlobal);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Agregar Nota con Fecha y Hora
+        async function agregarNota() {
+            const input = document.getElementById('notaInput');
+            const catInput = document.getElementById('categoriaInput');
+            const fechaPlanInput = document.getElementById('fechaAgendaInput');
+            const horaPlanInput = document.getElementById('horaAgendaInput');
+
+            const texto = input.value.trim();
+            if (!texto) return;
+
+            const horaRegistro = new Date().toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            const id = Math.random().toString(36).substring(2, 11);
+
+            const nuevaNota = {
+                id,
+                texto,
+                fecha: horaRegistro,
+                categoria: catInput.value,
+                fechaPlan: fechaPlanInput.value,
+                horaPlan: horaPlanInput.value
+            };
+
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ "nota": nuevaNota })
+                });
+                if (res.ok) {
+                    input.value = '';
+                    cargarNotas();
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function filtrarTareasPorFecha() {
+            const fechaBuscada = document.getElementById('filtroFecha').value;
+            if (!fechaBuscada) {
+                renderizarTarjetas(todasLasNotasGlobal);
+                return;
+            }
+            const filtradas = todasLasNotasGlobal.filter(n => n.fechaPlan === fechaBuscada);
+            renderizarTarjetas(filtradas);
+        }
+
+        function limpiarFiltroFecha() {
+            document.getElementById('filtroFecha').value = '';
+            renderizarTarjetas(todasLasNotasGlobal);
+        }
+
+        // Abrir Modal
+        function abrirModalEditar(id, categoria, fechaPlan, horaPlan) {
+            const textoOriginal = document.getElementById(`texto-contenido-${id}`).textContent;
+            document.getElementById('editNotaId').value = id;
+            document.getElementById('editNotaTexto').value = textoOriginal;
+            document.getElementById('editNotaCategoria').value = categoria;
+            document.getElementById('editNotaFechaPlan').value = fechaPlan;
+            document.getElementById('editNotaHoraPlan').value = horaPlan;
+            document.getElementById('editModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function cerrarModal() {
+            document.getElementById('editModal').classList.add('hidden');
+        }
+
+        // Guardar Edición (PUT)
+        async function guardarEdicion() {
+            const id = document.getElementById('editNotaId').value;
+            const nuevoTexto = document.getElementById('editNotaTexto').value.trim();
+            const nuevaCategoria = document.getElementById('editNotaCategoria').value;
+            const nuevaFechaPlan = document.getElementById('editNotaFechaPlan').value;
+            const nuevaHoraPlan = document.getElementById('editNotaHoraPlan').value;
+
+            if (!nuevoTexto) return;
+
+            const notaOriginal = todasLasNotasGlobal.find(n => n.id == id);
+            const notaActualizada = {
+                id,
+                texto: nuevoTexto,
+                fecha: notaOriginal ? notaOriginal.fecha : 'Editado',
+                categoria: nuevaCategoria,
+                fechaPlan: nuevaFechaPlan,
+                horaPlan: nuevaHoraPlan
+            };
+
+            try {
+                const res = await fetch(`http://localhost:5000/notas/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ "nota": notaActualizada })
+                });
+
+                if (res.ok) {
+                    cerrarModal();
+                    cargarNotas();
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Eliminar Nota
+        async function eliminarNotaIndividual(id) {
+            const tarjeta = document.getElementById(`nota-${id}`);
+            if (!tarjeta) return;
+            try {
+                const res = await fetch(`http://localhost:5000/notas/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    tarjeta.classList.add('nota-eliminando');
+                    setTimeout(() => { cargarNotas(); }, 300);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function borrarTodasLasNotas() {
+            if (!confirm("¿Deseas vaciar todo el planeador?")) return;
+            try {
+                const res = await fetch(BORRAR_URL, { method: 'POST' });
+                if (res.ok) cargarNotas();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        lucide.createIcons();
+        cargarNotas();
+    </script>
+</body>
+
+</html>

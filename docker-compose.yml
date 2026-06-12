@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  # 1. El contenedor de la Base de Datos
+  base-datos:
+    image: redis:alpine
+    container_name: base-datos
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-datos:/data
+    networks:
+      - red-notas
+
+  # 2. El contenedor de tu API de Python
+  backend-api:
+    build: .
+    container_name: backend-api
+    ports:
+      - "5000:5000"
+    environment:
+      - REDIS_HOST=base-datos
+    depends_on:
+      - base-datos
+    networks:
+      - red-notas
+
+  # 3. El contenedor del Servidor Web (Nginx)
+  servidor-web:
+    image: nginx:alpine
+    container_name: servidor-web
+    ports:
+      - "8085:80"
+    volumes:
+      - .:/usr/share/nginx/html:Z
+    networks:
+      - red-notas
+
+volumes:
+  redis-datos:
+
+networks:
+  red-notas:

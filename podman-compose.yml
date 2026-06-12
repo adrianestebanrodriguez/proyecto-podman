@@ -1,0 +1,39 @@
+version: '3'
+
+services:
+  base-datos:
+    image: redis:alpine
+    container_name: base-datos
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - red-notas
+
+  backend-api:
+    build: .
+    container_name: backend-api
+    ports:
+      - "5000:5000"
+    environment:
+      - REDIS_HOST=base-datos
+    networks:
+      - red-notas
+    depends_on:
+      - base-datos
+
+  frontend-web:
+    image: nginx:alpine
+    container_name: frontend-web
+    ports:
+      - "8085:80"
+    volumes:
+      - ./index.html:/usr/share/nginx/html/index.html:ro
+    networks:
+      - red-notas
+
+volumes:
+  redis_data: {}
+
+networks:
+  red-notas: {}
