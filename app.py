@@ -23,13 +23,17 @@ def get_service():
 def sincronizar_con_google(nota):
     try:
         service = get_service()
-        if not service:
-            print("ERROR: No se pudo obtener el servicio de Google (revisa GOOGLE_TOKEN_JSON)", flush=True)
-            return None
-
-        solo_fecha = nota.get('fecha', '').split(',')[0].strip()
-        partes = solo_fecha.split('/')
-        fecha_formateada = f"{partes[2]}-{partes[1]}-{partes[0]}"
+        
+        # USAMOS fechaPlan (que es YYYY-MM-DD) directamente del input del frontend
+        fecha_formateada = nota.get('fechaPlan') 
+        
+        # Si por alguna razón falla el input, usamos el fallback de seguridad
+        if not fecha_formateada:
+            solo_fecha = nota.get('fecha', '').split(',')[0].strip()
+            partes = solo_fecha.split('/')
+            fecha_formateada = f"{partes[2]}-{partes[1]}-{partes[0]}"
+        
+        print(f"DEBUG: Sincronizando para la fecha: {fecha_formateada}", flush=True)
         
         event = {
             'summary': 'Planeador: ' + nota.get('texto'),
@@ -38,10 +42,12 @@ def sincronizar_con_google(nota):
             'transparency': 'transparent'
         }
         
-        print(f"DEBUG: Intentando insertar evento para {fecha_formateada}", flush=True)
         res = service.events().insert(calendarId='primary', body=event).execute()
-        print(f"DEBUG: Evento creado exitosamente con ID: {res.get('id')}", flush=True)
         return res.get('id')
+        
+    except Exception as e:
+        print(f"ERROR CRÍTICO EN SINCRONIZACIÓN: {str(e)}", flush=True)
+        return None
         
     except Exception as e:
         # AQUÍ VEREMOS EL ERROR REAL EN EL LOG DE RENDER
