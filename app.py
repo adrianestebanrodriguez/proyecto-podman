@@ -7,8 +7,8 @@ import os
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-redis_host = os.environ.get('REDIS_HOST', 'localhost')
-db = redis.Redis(host=redis_host, port=6379, decode_responses=True)
+redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379')
+db = redis.from_url(redis_url, decode_responses=True)
 
 @app.route('/notas', methods=['GET'])
 def obtener_notas():
