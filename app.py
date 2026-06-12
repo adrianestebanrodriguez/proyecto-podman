@@ -13,9 +13,18 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-# Configuración de Redis
-redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379')
+import os
+import redis
+
+# Leemos la URL, si no está, lanzamos un error claro
+redis_url = os.environ.get('redis://red-d8lmg20js32c73b06th0:6379')
+
+if not redis_url:
+    raise ValueError("La variable de entorno REDIS_URL no está configurada")
+
+# Conectamos eliminando parámetros extra por si acaso
 db = redis.from_url(redis_url, decode_responses=True)
+print("Conexión a Redis establecida correctamente", flush=True)
 
 def sincronizar_con_google(nota_texto, fecha):
     if not os.path.exists('token.json'):
