@@ -34,6 +34,20 @@ def sincronizar_con_google(nota_texto, fecha_str):
         creds = Credentials.from_authorized_user_file('temp_token.json', ['https://www.googleapis.com/auth/calendar'])
         service = build('calendar', 'v3', credentials=creds)
         
+        # 3. CONSTRUCCIÓN DEL EVENTO PARA "TODO EL DÍA"
+        # Usamos 'date' en lugar de 'dateTime' para que sea un evento de todo el día independiente de la hora
+        event = {
+            'summary': 'Planeador: ' + nota_texto,
+            'start': {'date': fecha_formateada},
+            'end': {'date': fecha_formateada},
+            'transparency': 'transparent' # Opcional: hace que no te marque como 'ocupado'
+        }
+        
+        service.events().insert(calendarId='primary', body=event).execute()
+        print(f"Evento sincronizado exitosamente en: {fecha_formateada}", flush=True)
+    except Exception as e:
+        print(f"Error en sincronización: {e}", flush=True)
+        
         # 3. Envío
         event = {'summary': 'Planeador: ' + nota_texto, 'start': {'date': fecha_formateada}, 'end': {'date': fecha_formateada}}
         service.events().insert(calendarId='primary', body=event).execute()
