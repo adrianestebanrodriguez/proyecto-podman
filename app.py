@@ -25,13 +25,22 @@ if not redis_url:
 # Conectamos eliminando parámetros extra por si acaso
 db = redis.from_url(redis_url, decode_responses=True)
 print("Conexión a Redis establecida correctamente", flush=True)
+import json
 
 def sincronizar_con_google(nota_texto, fecha):
-    if not os.path.exists('token.json'):
-        print("Error: token.json no encontrado", flush=True)
-        return
+    # Intentamos obtener el token desde la variable de entorno
+    token_str = os.environ.get('GOOGLE_TOKEN_JSON')
     
-    creds = Credentials.from_authorized_user_file('token.json', ['https://www.googleapis.com/auth/calendar'])
+    if not token_str:
+        print("Error: GOOGLE_TOKEN_JSON no configurado en Render", flush=True)
+        return
+
+    # Creamos un archivo temporal en memoria o lo cargamos directamente
+    # Una forma sencilla es escribir el archivo temporalmente al arrancar
+    with open('temp_token.json', 'w') as f:
+        f.write(token_str)
+    
+    creds = Credentials.from_authorized_user_file('temp_token.json', ['https://www.googleapis.com/auth/calendar'])
     service = build('calendar', 'v3', credentials=creds)
     
     event = {
